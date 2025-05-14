@@ -397,7 +397,7 @@
                 <div class="progress" id="progressBar"></div>
             </div>
             <div class="progress-text">
-                <span id="progressStart">Tag 0</span>
+                <span id="progressStart">Tag 1</span>
                 <span id="progressPercent">0%</span>
                 <span id="progressEnd">Tag 21</span>
             </div>
@@ -405,7 +405,7 @@
         
         <div class="countdown">
             <div class="countdown-item">
-                <div class="countdown-value" id="days">0</div>
+                <div class="countdown-value" id="days">21</div>
                 <div class="countdown-label">Tage</div>
             </div>
             <div class="countdown-item">
@@ -575,14 +575,15 @@
         function updateCountdown() {
             const now = new Date();
             
-            // Berechne das Enddatum (Startdatum + ChallengeDays)
+            // Berechne das Enddatum
             const endDate = new Date(startDate);
             endDate.setDate(startDate.getDate() + challengeDays - 1);
             endDate.setHours(23, 59, 59, 999);
             
             // Berechne den Fortschritt
             let progress = 0;
-            let daysInProgress = 0;
+            let daysRemaining = challengeDays;
+            let currentDay = 0;
             
             if (now >= startDate && now <= endDate) {
                 // Challenge läuft
@@ -590,32 +591,71 @@
                 const elapsedTime = now.getTime() - startDate.getTime();
                 progress = Math.min(Math.max(0, (elapsedTime / totalTime) * 100), 100);
                 
-                daysInProgress = Math.ceil(elapsedTime / (1000 * 60 * 60 * 24));
+                // Berechne verbleibende Tage
+                currentDay = Math.floor(elapsedTime / (1000 * 60 * 60 * 24)) + 1;
+                daysRemaining = challengeDays - currentDay + 1;
+                
+                // Stelle sicher, dass wir nicht unter 0 gehen
+                daysRemaining = Math.max(0, daysRemaining);
             } else if (now > endDate) {
                 // Challenge ist abgeschlossen
                 progress = 100;
-                daysInProgress = challengeDays;
+                daysRemaining = 0;
+                currentDay = challengeDays;
                 
                 // Zeige die Erfolgsmeldung an
                 document.getElementById('completedMessage').classList.add('active');
+            } else {
+                // Challenge hat noch nicht begonnen
+                progress = 0;
+                daysRemaining = challengeDays;
+                currentDay = 0;
             }
             
             // Aktualisiere den Fortschrittsbalken
             document.getElementById('progressBar').style.width = `${progress}%`;
             document.getElementById('progressPercent').textContent = `${Math.round(progress)}%`;
-            document.getElementById('progressStart').textContent = `Tag ${daysInProgress}`;
-            document.getElementById('progressEnd').textContent = `Tag ${challengeDays}`;
             
-            // Berechne verbleibende Zeit wenn die Challenge noch nicht begonnen hat oder läuft
+            // Update progress text for remaining days
+            if (now < startDate) {
+                document.getElementById('progressStart').textContent = `Start in ${Math.ceil((startDate - now) / (1000 * 60 * 60 * 24))} Tagen`;
+            } else {
+                document.getElementById('progressStart').textContent = `Tag ${currentDay}`;
+            }
+            
+            // Berechne verbleibende Zeit bis zum Ende
             if (now < endDate) {
                 let targetDate = now < startDate ? startDate : endDate;
                 const distance = targetDate - now;
                 
-                // Berechne Tage, Stunden, Minuten und Sekunden
-                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                // Berechne verbleibende Tage, Stunden, Minuten und Sekunden
+                let days, hours, minutes, seconds;
+                
+                if (now < startDate) {
+                    // Vor dem Start: Zeige Zeit bis zum Start
+                    days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    
+                    // Aktualisiere Titel
+                    document.getElementById('countdownTitle').textContent = `${eventTitle}: Start in`;
+                } else {
+                    // Während der Challenge: Zeige verbleibende Zeit
+                    days = daysRemaining;
+                    
+                    // Restliche Zeit für den aktuellen Tag
+                    const endOfDay = new Date(now);
+                    endOfDay.setHours(23, 59, 59, 999);
+                    const timeLeftToday = endOfDay - now;
+                    
+                    hours = Math.floor(timeLeftToday / (1000 * 60 * 60));
+                    minutes = Math.floor((timeLeftToday % (1000 * 60 * 60)) / (1000 * 60));
+                    seconds = Math.floor((timeLeftToday % (1000 * 60)) / 1000);
+                    
+                    // Aktualisiere Titel
+                    document.getElementById('countdownTitle').textContent = `${eventTitle}: Noch`;
+                }
                 
                 // Aktualisiere die Anzeige
                 document.getElementById('days').textContent = days;
@@ -624,7 +664,7 @@
                 document.getElementById('seconds').textContent = seconds;
                 
                 // Heartbeat Animation für den letzten Tag
-                if (days === 0 && hours < 12) {
+                if (days === 1) {
                     document.querySelectorAll('.countdown-value').forEach(item => {
                         item.classList.add('heartbeat');
                     });
@@ -633,18 +673,13 @@
                         item.classList.remove('heartbeat');
                     });
                 }
-                
-                // Ändere den Titel wenn die Challenge bereits läuft
-                if (now >= startDate) {
-                    const countdownTitle = document.getElementById('countdownTitle');
-                    countdownTitle.textContent = `${eventTitle}: Tag ${daysInProgress} von ${challengeDays}`;
-                }
             } else {
                 // Challenge ist abgeschlossen
                 document.getElementById('days').textContent = '0';
                 document.getElementById('hours').textContent = '0';
                 document.getElementById('minutes').textContent = '0';
                 document.getElementById('seconds').textContent = '0';
+                document.getElementById('countdownTitle').textContent = `${eventTitle}: Geschafft!`;
             }
         }
         
